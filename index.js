@@ -1,52 +1,97 @@
+
 function isCoverageSufficient(desiredDistanceRange, desiredLightRange, hardwareCameras) {
-    const [minRequiredDistance, maxRequiredDistance] = desiredDistanceRange;
-    const [minRequiredLight, maxRequiredLight] = desiredLightRange;
+    const distanceRanges = hardwareCameras.map(cam => cam.distanceRange);
+    const lightRanges = hardwareCameras.map(cam => cam.lightRange);
 
-    let coveredDistances = new Set();
-    let coveredLightLevels = new Set();
+    const mergedDistanceRanges = mergeIntervals(distanceRanges);
+    const mergedLightRanges = mergeIntervals(lightRanges);
 
-    if (hardwareCameras.length === 0) {
+    // Function to merge overlapping intervals
+    function mergeIntervals(intervals) {
+        if (intervals.length === 0) return [];
+
+        intervals.sort((a, b) => a[0] - b[0]); //sorting based on start of the interval
+
+        const merged = [intervals[0]];
+
+        for (let i = 1; i < intervals.length; i++) {
+            const last = merged[merged.length - 1];
+            const current = intervals[i];
+
+            if (last[1] < current[0]) {  //if there is no overlap
+                merged.push(current); 
+            } else {
+                last[1] = Math.max(last[1], current[1]); //if overlap, merge the intervals
+            }
+        }
+        return merged;
+    }
+
+    // Function to check if a required range is covered by merged ranges
+    function isRangeCovered(mergedRanges, requiredRange) {
+        const [requiredStart, requiredEnd] = requiredRange;
+        for (const [start, end] of mergedRanges) {
+            if (start <= requiredStart && end >= requiredEnd) {
+                return true; //if the required range is fully covered by the merged range
+            }
+        }
         return false;
     }
-    // Iterating through all hardware cameras and tracking covered ranges
-    for (let camera of hardwareCameras) {
-        for (let d = camera.minDistance; d <= camera.maxDistance; d++) {
-            coveredDistances.add(d);
-        }
-        for (let l = camera.minLight; l <= camera.maxLight; l++) {
-            coveredLightLevels.add(l);
-        }
-    }
 
-    // Checking if all required distances and light levels are covered
-    for (let d = minRequiredDistance; d <= maxRequiredDistance; d++) {
-        if (!coveredDistances.has(d)) return false; // Missing distance
-    }
-    for (let l = minRequiredLight; l <= maxRequiredLight; l++) {
-        if (!coveredLightLevels.has(l)) return false; // Missing light level
-    }
-
-    return true; // Everything is covered
+    return (
+        isRangeCovered(mergedDistanceRanges, desiredDistanceRange) &&
+        isRangeCovered(mergedLightRanges, desiredLightRange)
+    );
 }
 
 
-// Example:
-const hardwareCameras = [
-    { minDistance: 1, maxDistance: 5, minLight: 10, maxLight: 50 },
-    { minDistance: 8, maxDistance: 10, minLight: 40, maxLight: 80 },
-    { minDistance: 11, maxDistance: 15, minLight: 70, maxLight: 100 }
+// Test casees I have considered as per my understanfing of the problem
+
+// #1: Full coverage
+const desiredDistanceRange1 = [1, 10];
+const desiredLightRange1 = [100, 1000];
+
+const hardwareSet1 = [
+    { distanceRange: [1, 5], lightRange: [100, 300] },
+    { distanceRange: [5, 10], lightRange: [250, 1000] },
 ];
 
-//Sucess case
-const desiredDistanceRange = [8, 15];
-const desiredLightRange = [10, 100];
+console.log("Test case 1: ", isCoverageSufficient(desiredDistanceRange1, desiredLightRange1, hardwareSet1));
+//Output: true
 
-console.log(isCoverageSufficient(desiredDistanceRange, desiredLightRange, hardwareCameras));
-// Output: true
+// #2: Gap in distance
+const desiredDistanceRange2 = [1, 10];
+const desiredLightRange2 = [100, 1000];
 
-//Failure case
-const desiredDistanceRange2 = [5, 15];
-const desiredLightRange2 = [10, 100];
+const hardwareSet2 = [
+    { distanceRange: [1, 4], lightRange: [100, 1000] },
+    { distanceRange: [6, 10], lightRange: [100, 1000] },
+];
 
-console.log(isCoverageSufficient(desiredDistanceRange2, desiredLightRange2, hardwareCameras));
+console.log("Test case 2: ", isCoverageSufficient(desiredDistanceRange2, desiredLightRange2, hardwareSet2));
 // Output: false
+
+// #3: Gap in light range
+const desiredDistanceRange3 = [1, 10];
+const desiredLightRange3 = [100, 1000];
+
+const hardwareSet3 = [
+    { distanceRange: [1, 10], lightRange: [100, 400] },
+    { distanceRange: [1, 10], lightRange: [600, 1000] },
+];
+
+console.log("Test case 3: ", isCoverageSufficient(desiredDistanceRange3, desiredLightRange3, hardwareSet3));
+// Output: false
+
+// #4: Multiple overlapping cameras
+const desiredDistanceRange4 = [1, 10];
+const desiredLightRange4 = [100, 1000];
+
+const hardwareSet4 = [
+    { distanceRange: [1, 4], lightRange: [100, 300] },
+    { distanceRange: [3, 7], lightRange: [250, 600] },
+    { distanceRange: [6, 10], lightRange: [500, 1000] },
+];
+
+console.log("Test case 4: ",isCoverageSufficient(desiredDistanceRange4, desiredLightRange4, hardwareSet4));
+// Output: true
